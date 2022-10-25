@@ -1,0 +1,44 @@
+model = Sequential()
+
+model.add(BatchNormalization(input_shape=(X_train[0].shape)))
+model.add(Conv2D(64, (3,3), activation="relu", padding="same"))
+model.add(Conv2D(64, (3,3), activation="relu", padding="same"))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(Dropout(0.25))
+
+model.add(BatchNormalization())
+model.add(Conv2D(128, (3,3), activation="relu", padding="same"))
+model.add(Conv2D(128, (3,3), activation="relu", padding="same"))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(Dropout(0.25))
+
+model.add(BatchNormalization())
+model.add(Conv2D(256, (3,3), activation="relu", padding="same"))
+model.add(Conv2D(256, (3,3), activation="relu", padding="same"))
+model.add(MaxPool2D(pool_size=(2,2)))
+model.add(Dropout(0.25))
+
+model.add(Flatten())
+model.add(Dense(512, activation="relu"))
+model.add(Dropout(0.25))
+model.add(Dense(10, activation="softmax"))
+
+model.compile(loss="categorical_crossentropy",
+              optimizer="adam",
+              metrics="accuracy")
+
+datagen = ImageDataGenerator(
+    rescale= 1. / 255,
+    rotation_range=10,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    zoom_range=0.1,
+    horizontal_flip=True,
+    fill_mode="nearest")
+
+datagen.fit(X_train)
+
+history = model.fit(datagen.flow(X_train, Y_train, batch_size=128), 
+          validation_data=datagen.flow(X_test, Y_test, batch_size=32),
+          steps_per_epoch=len(X_train)/128, epochs=20)
+          

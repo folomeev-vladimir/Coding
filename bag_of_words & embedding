@@ -1,0 +1,102 @@
+def read_txt(path):
+    f = open(path, "r")
+    text = f.read()
+    text = text.replace("\n", " ")
+
+    return text
+
+className = ["Генри", "Стругацкие", "Булгаков", "Клиффорд", "Макс", "Брэдберри"] 
+
+train_txt = []
+test_txt = []
+
+for c in className:
+    for d in os.listdir("/content/drive/MyDrive/Тексты писателей"):
+        if c in d:
+            if "Обучающая" in d:
+                train_txt.append(read_txt("/content/drive/MyDrive/Тексты писателей/" + d))
+            if "Тестовая" in d:
+                test_txt.append(read_txt("/content/drive/MyDrive/Тексты писателей/" + d))
+                
+max_words_count = 20000
+
+tokenizer = Tokenizer(num_words=max_words_count,
+                      filters='!"#$%&()*+,-–—./…:;<=>?@[\\]^_`{|}~«»\t\n\xa0\ufeff',
+                      lower=True,
+                      split=" ",
+                      oov_token="unknown",
+                      char_level=False) #if char_level True, every character is a token
+
+tokenizer.fit_on_texts(train_txt) 
+items = list(tokenizer.word_index.items())
+
+train_seq = tokenizer.texts_to_sequences(train_txt) #to sequences
+test_seq = tokenizer.texts_to_sequences(test_txt)
+
+def getSetFromIndexes(wordIndexes, xLen, step): 
+    xSample = [] 
+    wordsLen = len(wordIndexes) 
+    index = 0 
+
+while (index + xLen <= wordsLen):
+    xSample.append(wordIndexes[index:index+xLen]) 
+    index += step 
+
+    return xSample
+
+def createSetsMultiClasses(wordIndexes, xLen, step): 
+
+    nClasses = len(wordIndexes) 
+    classesXSamples = []        
+    for wI in wordIndexes:      
+        classesXSamples.append(getSetFromIndexes(wI, xLen, step)) 
+
+    xSamples = [] 
+    ySamples = [] 
+
+    for t in range(nClasses):
+        xT = classesXSamples[t] 
+        for i in range(len(xT)): 
+            xSamples.append(xT[i]) 
+            ySamples.append(utils.to_categorical(t, nClasses)) 
+
+    xSamples = np.array(xSamples) 
+    ySamples = np.array(ySamples) 
+
+  
+    return (xSamples, ySamples) 
+
+x_len = 1000
+step = 100
+
+x_train, y_train = createSetsMultiClasses(train_seq, x_len, step)
+x_test, y_test = createSetsMultiClasses(test_seq, x_len, step)
+
+x_train01 = tokenizer.sequences_to_matrix(x_train.tolist())
+x_test01 = tokenizer.sequences_to_matrix(x_test.tolist())
+
+model01 = Sequential()
+
+model01.add(Dense(200, input_dim=max_words_count, activation="relu"))
+model01.add(Dropout(0.25))
+model01.add(BatchNormalization())
+
+model01.add(Dense(6, activation="sigmoid"))
+
+model01.compile(loss="categorical_crossentropy",
+                optimizer="adam",
+                metrics=["accuracy"])
+
+history = model01.fit(x_train01, y_train,
+                     epochs=10,
+                     batch_size=128,
+                     validation_data=(x_test01, y_test))
+ 
+plt.plot(history.history['accuracy'], 
+         label='Доля верных ответов на обучающем наборе')
+plt.plot(history.history['val_accuracy'], 
+         label='Доля верных ответов на проверочном наборе')
+plt.xlabel('Эпоха обучения')
+plt.ylabel('Доля верных ответов')
+plt.legend()
+plt.show()
